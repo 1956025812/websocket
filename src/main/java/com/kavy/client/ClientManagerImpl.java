@@ -1,63 +1,73 @@
 package com.kavy.client;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.concurrent.ListenableFuture;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.WebSocketClient;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 
+import javax.websocket.DeploymentException;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
-//@Component
+/**
+ *
+ */
+@Slf4j
 public class ClientManagerImpl implements ClientManager {
     private WebSocketSession webSocketSession;
     private ListenableFuture<WebSocketSession> webSocketSessionListenableFuture;
     private Boolean isConnected = false;
     private WebSocketClient standardWebSocketClient;
-//    @Value("${webSocketUrl}")
     private String websocketUrl;
 
     public ClientManagerImpl() {
         standardWebSocketClient = new StandardWebSocketClient();
     }
+
     public ClientManagerImpl(String websocketUrl) {
         this.websocketUrl = websocketUrl;
         standardWebSocketClient = new StandardWebSocketClient();
     }
 
-    public WebSocketSession getSocketSession() {
-        if (isConnected && webSocketSession.isOpen()) return webSocketSession;
+    public synchronized WebSocketSession getSocketSession() {
+        log.info("getSocketSession: isConnected: {}， 当前客户端ID：{}, 是否开启：{}", isConnected, null == webSocketSession ? null : webSocketSession.getId(),
+                null == webSocketSession ? null : webSocketSession.isOpen());
+        if (isConnected && webSocketSession.isOpen()) {
+            return webSocketSession;
+        }
+        log.info("getSocketSession: 需要重新建立连接");
         return connectSocket();
     }
-    private WebSocketSession connectSocket() {
+
+
+    private synchronized WebSocketSession connectSocket() {
         try {
             do {
                 webSocketSessionListenableFuture = standardWebSocketClient.doHandshake(new ClientHandler(this), websocketUrl);
                 webSocketSession = webSocketSessionListenableFuture.get();
                 if (webSocketSession.isOpen()) {
-                    System.out.println("连接成功>>>>>>>");
+                    log.info("connectSocket: 连接成功>>>>>>>， 当前新的客户端ID：{}， 开启状态：{}", webSocketSession.getId(), webSocketSession.isOpen());
                     isConnected = true;
                     return webSocketSession;
                 } else {
                     Thread.sleep(3000);
-                    System.out.println("重新尝试连接>>>>>>>");
+                    log.info("connectSocket: 重新尝试连接>>>>>>>");
                 }
             } while (!webSocketSession.isOpen());
         } catch (InterruptedException e) {
             e.printStackTrace();
-            System.out.println("中断出错>>>>>>>");
+            log.error("connectSocket: 中断出错>>>>>>>, 当前客户端ID：{}, 是否开启：{}, 出错原因：{}", webSocketSession.getId(), webSocketSession.isOpen(), e.getMessage(), e);
         } catch (ExecutionException e) {
-            System.out.println("连接出错>>>>>>>");
+            log.error("connectSocket: 连接出错>>>>>>>, 当前客户端ID：{}, 是否开启：{}, 出错原因：{}", webSocketSession.getId(), webSocketSession.isOpen(), e.getMessage(), e);
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException ex) {
                 ex.printStackTrace();
             }
-            System.out.println("尝试连接>>>>>>>");
-            webSocketSessionListenableFuture.cancel(true);//连接断开后需要取消之前的连接
+            log.error("connectSocket: 尝试连接>>>>>>>, 当前客户端ID：{}, 是否开启：{}, 出错原因：{}", webSocketSession.getId(), webSocketSession.isOpen(), e.getMessage(), e);
+            webSocketSessionListenableFuture.cancel(true);
             return connectSocket();
         }
         return null;
@@ -65,12 +75,14 @@ public class ClientManagerImpl implements ClientManager {
 
     public void resetWebSocketSession() {
         isConnected = false;
-        System.out.println("连接断开>>>>重新连接");
+        log.info("resetWebSocketSession: 连接断开>>>>重新连接, 当前客户端ID：{}, 是否开启：{}", webSocketSession.getId(), webSocketSession.isOpen());
         connectSocket();
     }
 
     @Override
     public void sendTextMsg(String msg) throws IOException {
-        getSocketSession().sendMessage(new TextMessage(msg));
+        WebSocketSession socketSession = getSocketSession();
+        log.info("sendTextMsg: 当前客户端ID：{}, 开启状态：{}, 发送信息：{}", socketSession.getId(), socketSession.isOpen(), msg);
+        socketSession.sendMessage(new TextMessage(msg));
     }
 }

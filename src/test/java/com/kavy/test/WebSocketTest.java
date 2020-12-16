@@ -1,12 +1,14 @@
 package com.kavy.test;
 
 import com.kavy.client.ClientManagerImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
 
+@Slf4j
 public class WebSocketTest {
 
     @Test
@@ -16,9 +18,9 @@ public class WebSocketTest {
             WebSocketSession socketSession = null;
             while(true) {
                 socketSession = clientManagerImpl.getSocketSession();
-                socketSession.sendMessage(new TextMessage("abc"));
+                socketSession.sendMessage(new TextMessage("abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"));
                 Thread.sleep(3000);
-                System.out.println("发送消息>>>>>>>");
+                log.info("发送消息: abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc");
             }
         } catch (IOException e) {
             e.printStackTrace();
